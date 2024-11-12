@@ -97,6 +97,62 @@ While for larger $\mu$, almost all samples have their null hypothesis rejected, 
 # Problem 3
 
 ```{r}
+homicide <- read_csv("data/homicide-data.csv") %>% 
+  mutate(city_state = str_c(city,state,sep = ", "))
+
+total_homicide <- homicide %>% 
+  group_by(city_state) %>% 
+  summarize(total_cases = n()) 
+
+unsolved_homiside <- homicide %>% 
+  filter(disposition == "Closed without arrest" | disposition == "Open/No arrest") %>% 
+  group_by(city_state) %>% 
+  summarize(unsolved_cases = n()) 
+
+(cases_table <- left_join(total_homicide,unsolved_homiside, by = "city_state") %>% 
+    mutate(
+    unsolved_cases = case_when(is.na(unsolved_cases) ~ 0,TRUE ~ unsolved_cases)
+    ))
+  
+```
+This dataset about homicides in 50 large U.S. cities has `r nrow(homicide)` rows and `r ncol(homicide)` columns. It has more than 52000 criminal homicides over the past decade. And it includes the date of the cases，basic information about the suspect，location of the cases and whether the arrest has been made.
+
+```{r}
+BalMD <- cases_table %>% 
+  filter(city_state == "Baltimore, MD")
+
+prop_test_BalMD <-
+  prop.test(x = BalMD %>% pull(unsolved_cases), n = BalMD %>% pull(total_cases)) %>%
+  broom::tidy() %>% 
+  select(estimate,conf.low,conf.high) %>% 
+  mutate(city = BalMD %>% select(city_state)) %>% 
+  unnest()
+
+est_and_CI <- function(state){
+  
+  City <- cases_table %>% filter(city_state == state)
+  
+  prop.test(x = City %>% pull(unsolved_cases), n = City %>% pull(total_cases)) %>%
+  broom::tidy() %>% 
+  select(estimate,conf.low,conf.high) %>% 
+    mutate(city = City %>% select(city_state)) %>% 
+  unnest()
+  
+}
+
+
+prop_test_all <- map_dfr(cases_table %>% pull(city_state), \(x) est_and_CI(x))
 
 ```
 
+```{r}
+prop_test_all %>% 
+  arrange(desc(estimate)) %>% 
+  mutate(city_state = reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+    geom_point()+
+  theme(axis.text.x = element_text(size = 5,angle = 30))
+  
+  
+```
