@@ -96,9 +96,12 @@ While for larger $\mu$, almost all samples have their null hypothesis rejected, 
 
 # Problem 3
 
+There is one row that mistakenly write city `Tulsa` belongs to state `AL`, which should belongs to `OK`, so we remove this row for inprecision reason.
+
 ```{r}
 homicide <- read_csv("data/homicide-data.csv") %>% 
-  mutate(city_state = str_c(city,state,sep = ", "))
+  mutate(city_state = str_c(city,state,sep = ", ")) %>% 
+  filter((city_state != "Tulsa, AL"))
 
 total_homicide <- homicide %>% 
   group_by(city_state) %>% 
@@ -109,24 +112,22 @@ unsolved_homiside <- homicide %>%
   group_by(city_state) %>% 
   summarize(unsolved_cases = n()) 
 
-(cases_table <- left_join(total_homicide,unsolved_homiside, by = "city_state") %>% 
-    mutate(
-    unsolved_cases = case_when(is.na(unsolved_cases) ~ 0,TRUE ~ unsolved_cases)
-    ))
+(cases_table <- left_join(total_homicide,unsolved_homiside, by = "city_state"))
   
 ```
-This dataset about homicides in 50 large U.S. cities has `r nrow(homicide)` rows and `r ncol(homicide)` columns. It has more than 52000 criminal homicides over the past decade. And it includes the date of the cases，basic information about the suspect，location of the cases and whether the arrest has been made.
 
-```{r}
+This dataset about homicides in 50 large U.S. cities has `r nrow(homicide)` rows and `r ncol(homicide)+1` columns. It has more than 52000 criminal homicides over the past decade. And it includes the date of the cases，basic information about the suspect，location of the cases and whether the arrest has been made.
+
+```{r warning=FALSE}
 BalMD <- cases_table %>% 
   filter(city_state == "Baltimore, MD")
 
-prop_test_BalMD <-
+(prop_test_BalMD <-
   prop.test(x = BalMD %>% pull(unsolved_cases), n = BalMD %>% pull(total_cases)) %>%
   broom::tidy() %>% 
   select(estimate,conf.low,conf.high) %>% 
   mutate(city = BalMD %>% select(city_state)) %>% 
-  unnest()
+  unnest())
 
 est_and_CI <- function(state){
   
@@ -141,7 +142,7 @@ est_and_CI <- function(state){
 }
 
 
-prop_test_all <- map_dfr(cases_table %>% pull(city_state), \(x) est_and_CI(x))
+(prop_test_all <- map_dfr(cases_table %>% pull(city_state), \(x) est_and_CI(x)))
 
 ```
 
@@ -153,6 +154,5 @@ prop_test_all %>%
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
     geom_point()+
   theme(axis.text.x = element_text(size = 5,angle = 30))
-  
-  
+
 ```
