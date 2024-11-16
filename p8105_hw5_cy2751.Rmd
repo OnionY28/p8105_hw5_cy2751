@@ -169,8 +169,10 @@ unsolved_homiside <- homicide %>%
 BalMD <- cases_table %>% 
   filter(city_state == "Baltimore, MD")
 
-(prop_test_BalMD <-
-  prop.test(x = BalMD %>% pull(unsolved_cases), n = BalMD %>% pull(total_cases)) %>%
+prop_test_BalMD <-
+  prop.test(x = BalMD %>% pull(unsolved_cases), n = BalMD %>% pull(total_cases))
+
+(prop_test_BalMD%>%
   broom::tidy() %>% 
   select(estimate,conf.low,conf.high) %>% 
   mutate(city = BalMD %>% select(city_state)) %>% 
@@ -180,7 +182,10 @@ est_and_CI <- function(state){
   
   City <- cases_table %>% filter(city_state == state)
   
-  prop.test(x = City %>% pull(unsolved_cases), n = City %>% pull(total_cases)) %>%
+  prop_result_all <-
+    prop.test(x = City %>% pull(unsolved_cases), n = City %>% pull(total_cases)) 
+  
+  prop_result_all%>%
   broom::tidy() %>% 
   select(estimate,conf.low,conf.high) %>% 
     mutate(city = City %>% select(city_state)) %>% 
